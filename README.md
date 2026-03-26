@@ -76,3 +76,47 @@ A ServiceLoader-based provider (`RequirementMappingResolverProvider`) that maps 
 - Docker (required for Testcontainers in integration tests)
 
 Building and running the tests is just plain Maven.
+
+## Publishing
+
+Publishing is configured in `pom.xml` through a `release` profile that enables `org.sonatype.central:central-publishing-maven-plugin`.
+
+### One-time Maven credentials setup
+
+Add Central Portal credentials to `~/.m2/settings.xml` using the same server id as the POM (`central`):
+
+```xml
+<settings>
+  <servers>
+    <server>
+      <id>central</id>
+      <username>${env.CENTRAL_TOKEN_USER}</username>
+      <password>${env.CENTRAL_TOKEN_PASS}</password>
+    </server>
+  </servers>
+</settings>
+```
+
+### Publish a SNAPSHOT
+
+1. Keep the project version as `*-SNAPSHOT` (for example `1.0.0-SNAPSHOT`).
+2. Run deploy with the `release` profile:
+
+```zsh
+cd /Users/jesper/Vibe/jpa_helper
+./mvnw -Prelease -DskipTests -DskipITs deploy
+```
+
+### Publish a release
+
+1. Set a non-snapshot version (for example `1.0.0`).
+2. Tag and push the release commit.
+3. Run:
+
+```zsh
+cd /Users/jesper/Vibe/jpa_helper
+./mvnw -Prelease -DskipTests -DskipITs deploy
+```
+
+Test modules (`jpa-tripwire-test-*`) are always excluded from publishing via `<maven.deploy.skip>true</maven.deploy.skip>` in `jpa-tripwire-test-parent/pom.xml`. Only the four library modules are ever deployed.
+

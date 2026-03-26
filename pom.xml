@@ -19,6 +19,19 @@
         </license>
     </licenses>
 
+    <developers>
+        <developer>
+            <name>Jesper Steen Møller</name>
+            <email>jesper@selskabet.org</email>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git://github.com/jespersm/jpa-tripwire</connection>
+        <developerConnection>scm:git:ssh://github.com:jespersm/jpa-tripwire.git</developerConnection>
+        <url>http://github.com/jespersm/jpa-tripwire/tree/main</url>
+    </scm>
+
     <modules>
         <module>indexinator-core</module>
         <module>indexinator-hibernate</module>
@@ -82,5 +95,25 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+
     </build>
+
+    <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.5.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
