@@ -103,7 +103,7 @@ Add Central Portal credentials to `~/.m2/settings.xml` using the same server id 
 2. Run deploy with the `release` profile:
 
 ```zsh
-cd /Users/jesper/Vibe/jpa_helper
+cd jpa_tripwire
 ./mvnw -Prelease -DskipTests -DskipITs deploy
 ```
 
@@ -114,7 +114,7 @@ cd /Users/jesper/Vibe/jpa_helper
 3. Run:
 
 ```zsh
-cd /Users/jesper/Vibe/jpa_helper
+cd jpa_tripwire
 ./mvnw -Prelease -DskipTests -DskipITs deploy
 ```
 
