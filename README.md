@@ -18,44 +18,84 @@ I built the JPA Tripwire to help developers identify common database performance
 
 ### Use Unselectinator in a Spring Boot integration test
 
-`unselectinator-hibernate` ships ready-to-use Spring wiring support via optional dependencies.
+`unselectinator-hibernate` contains configuration beans to enable capturing lazy loads.
 
-The main entry point is [`UnselectinatorSpringConfiguration`](unselectinator-hibernate/src/main/java/io/github/jespersm/jpa/tripwire/unselectinator/hibernate/spring/UnselectinatorSpringConfiguration.java), which registers:
+The main entry point is [`UnselectinatorSpringConfiguration`](unselectinator-hibernate/src/main/java/io/github/jespersm/jpa/tripwire/unselectinator/hibernate/spring/UnselectinatorSpringConfiguration.java), and with that, you can wrap observations in an [`Unselectinator`](unselectinator-core/src/main/java/io/github/jespersm/jpa/tripwire/unselectinator/core/Unselectinator.java), which registers the required instrumentation (using  [`EntityLoadTracker`](unselectinator-core/src/main/java/io/github/jespersm/jpa/tripwire/unselectinator/core/EntityLoadTracker.java), [`ObservedEntityManagerFactory`](unselectinator-core/src/main/java/io/github/jespersm/jpa/tripwire/unselectinator/core/ObservedEntityManagerFactory.java) and [`RepositoryFetchObservationAspect`](unselectinator-hibernate/src/main/java/io/github/jespersm/jpa/tripwire/unselectinator/hibernate/spring/RepositoryFetchObservationAspect.java)). 
 
-- [`EntityLoadTracker`](unselectinator-core/src/main/java/io/github/jespersm/jpa/tripwire/unselectinator/core/EntityLoadTracker.java)
-- [`Unselectinator`](unselectinator-core/src/main/java/io/github/jespersm/jpa/tripwire/unselectinator/core/Unselectinator.java)
-- an observed `EntityManager` via [`ObservedEntityManagerFactory`](unselectinator-core/src/main/java/io/github/jespersm/jpa/tripwire/unselectinator/core/ObservedEntityManagerFactory.java)
-- the Hibernate `BeanPostProcessor`
-- [`RepositoryFetchObservationAspect`](unselectinator-hibernate/src/main/java/io/github/jespersm/jpa/tripwire/unselectinator/hibernate/spring/RepositoryFetchObservationAspect.java)
-
-Nothing activates automatically, so each test class opts in explicitly.
-
-For a single test class:
+Nothing activates automatically, so each test class opts in explicitly. Example:
 
 ```java
 @SpringBootTest(classes = MyApp.class)
 @Import(UnselectinatorSpringConfiguration.class)
-class MyIntegrationTest { }
+class MyIntegrationTest {
+    ...
+
+    @Test
+    @Transactional
+    void testThingWorksWell() {
+        var report = unselectinator.observe(() -> {
+                var aThing = thingRepository.findByFrobKind("xyz");
+                assertTrue(aThing.thingWorks());
+        });
+        assertEquals(0, report.getLazySelectCount(), "Expected that things could work without lazy loads");
+    }
+    ...
+}    
 ```
 
-Or on a shared abstract base class:
+You can also put the reference into a shared test base class:
 
 ```java
 @SpringBootTest(classes = { MyApp.class, UnselectinatorSpringConfiguration.class })
 abstract class AbstractMyTest { }
 ```
 
-See [`AbstractTripwireTest`](jpa-tripwire-test-parent/src/test/java/io/github/jespersm/jpa/tripwire/test/AbstractTripwireTest.java) for a working example.
+See [`UnselectinatorIntegrationTest`](jpa-tripwire-test-parent/src/test/java/io/github/jespersm/jpa/tripwire/test/UnselectinatorIntegrationTest.java) for a working example.
+
+The library provides a tracker-based interceptor that detects N+1 select patterns at runtime by monitoring Entity Manager loads and Spring Data repository method executions and the resulting SQL statements.
+Wraps repository methods and tracks entity loads to identify when multiple queries are issued for related entities, indicating potential N+1 issues. Currently only supports Hibernate as a JPA provider.
 
 ### Use Indexinator to assert your database structure matches expected query behavior
 
 After running [`Indexinator`](indexinator-core/src/main/java/io/github/jespersm/jpa/tripwire/indexinator/core/Indexinator.java) and getting an [`InspectionReport`](indexinator-core/src/main/java/io/github/jespersm/jpa/tripwire/indexinator/core/model/InspectionReport.java), assert that there are no findings:
 
 ```java
-assertFalse(report.hasIssues(), "Expected no index findings");
+try (Connection connection = dataSource.getConnection()) {
+    InspectionReport report = Indexinator.builder()
+           .withEntities(ThingLibrary.class, Thing.class, ThingAttribute.class)
+           .withRepositories(ThingLibraryRepository.class, ThingRepository.class)
+           .build()
+           .inspect(connection);
+    assertFalse(report.hasIssues(), "Expected no index findings for things in libraries.");
 ```
 
-## Project Structure
+See [`IndexinatorIntegrationTest`](jpa-tripwire-test-parent/src/test/java/io/github/jespersm/jpa/tripwire/test/IndexinatorIntegrationTest.java) for a working example.
+
+#### Detection types
+
+| Issue Type | Severity | Description |
+|------------|----------|-------------|
+| Missing FK Index | HIGH/MEDIUM | Foreign key columns without indexes (JPA `@ManyToOne`, owning `@OneToOne`) |
+| Missing Unique Index | MEDIUM | `@Column(unique = true)` columns without indexes |
+| Missing Declared Index | MEDIUM | `@Table(indexes=...)` declared but not present in schema |
+| Missing Query Index | MEDIUM | Columns used in Spring Data derived queries without indexes |
+| Potential Composite Index | LOW | Opportunity for composite indexes based on access patterns |
+
+#### Support
+
+Hibernate support is optional, in that a ServiceLoader-based provider (`RequirementMappingResolverProvider`) that maps JPA entity/property requirements to actual table/column names using Hibernate's metamodel API, enabling more accurate schema validation than using the basic introspection based on stock JPA table and schema mappings.
+
+## Development Notes
+
+### Prerequisites
+
+- Java 17 or higher
+- Maven 3.6+
+- Docker (required for Testcontainers in integration tests)
+
+Building and running the tests is just plain Maven.
+
+### Project Structure
 
 This is a multi-module Maven project:
 
@@ -82,48 +122,6 @@ jpa-tripwire/
 └── jpa-tripwire-test-sb4/      # Source-less Spring Boot 4 runner
     └── Java 21 runner compiling shared test-parent sources
 ```
-
-## Features
-
-### Indexinator
-
-The core library provides:
-
-- **Entity Analysis**: Extracts metadata from JPA entities using reflection
-- **Schema Inspection**: Uses JDBC metadata to inspect actual database schema
-- **Issue Detection**: Compares entity metadata with database schema to find issues
-- **Detailed Reporting**: Generates comprehensive reports with severity levels and recommendations
-
-#### Missing Index Detection
-
-| Issue Type | Severity | Description |
-|------------|----------|-------------|
-| Missing FK Index | HIGH/MEDIUM | Foreign key columns without indexes (JPA `@ManyToOne`, owning `@OneToOne`) |
-| Missing Unique Index | MEDIUM | `@Column(unique = true)` columns without indexes |
-| Missing Declared Index | MEDIUM | `@Table(indexes=...)` declared but not present in schema |
-| Missing Query Index | MEDIUM | Columns used in Spring Data derived queries without indexes |
-| Potential Composite Index | LOW | Opportunity for composite indexes based on access patterns |
-
-#### Indexinator Hibernate Extension 
-
-A ServiceLoader-based provider (`RequirementMappingResolverProvider`) that maps JPA entity/property requirements to actual table/column names using Hibernate's metamodel API, enabling accurate schema validation.
-
-### Unselectinator
-
-The core library provides a tracker-based interceptor that detects N+1 select patterns at runtime by monitoring Entity Manager loads and Spring Data repository method executions and the resulting SQL statements.
-Wraps repository methods and tracks entity loads to identify when multiple queries are issued for related entities, indicating potential N+1 issues.
-
-#### Unselectinator Hibernate Extension
-
-## Prerequisites
-
-- Java 17 or higher
-- Maven 3.6+
-- Docker (required for Testcontainers in integration tests)
-
-Building and running the tests is just plain Maven.
-
-## Development Notes
 
 ### Publishing
 
