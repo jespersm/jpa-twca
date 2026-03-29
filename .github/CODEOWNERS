@@ -1,0 +1,9 @@
+# Require explicit maintainer review for release-critical files.
+* @jespersm
+/.github/workflows/ @jespersm
+/.github/CODEOWNERS @jespersm
+/pom.xml @jespersm
+/jpa-tripwire-test-parent/pom.xml @jespersm
+/jpa-tripwire-test-sb35/pom.xml @jespersm
+/jpa-tripwire-test-sb4/pom.xml @jespersm
+

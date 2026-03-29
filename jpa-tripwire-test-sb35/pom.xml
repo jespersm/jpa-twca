@@ -19,6 +19,7 @@
         <spring.boot.test.version>3.5.12</spring.boot.test.version>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
+        <maven.deploy.skip>true</maven.deploy.skip>
     </properties>
 
     <dependencies>

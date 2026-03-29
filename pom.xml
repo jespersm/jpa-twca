@@ -11,6 +11,7 @@
 
     <name>JPA Tripwire</name>
     <description>JPA Testing Tools</description>
+    <url>https://github.com/jespersm/jpa-tripwire</url>
 
     <licenses>
         <license>
@@ -27,9 +28,9 @@
     </developers>
 
     <scm>
-        <connection>scm:git:git://github.com/jespersm/jpa-tripwire</connection>
-        <developerConnection>scm:git:ssh://github.com:jespersm/jpa-tripwire.git</developerConnection>
-        <url>http://github.com/jespersm/jpa-tripwire/tree/main</url>
+        <connection>scm:git:https://github.com/jespersm/jpa-tripwire.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/jespersm/jpa-tripwire.git</developerConnection>
+        <url>https://github.com/jespersm/jpa-tripwire/tree/main</url>
     </scm>
 
     <modules>

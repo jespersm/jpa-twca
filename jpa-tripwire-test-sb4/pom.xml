@@ -19,6 +19,7 @@
         <spring.boot.test.version>4.0.4</spring.boot.test.version>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
+        <maven.deploy.skip>true</maven.deploy.skip>
     </properties>
 
     <dependencies>
